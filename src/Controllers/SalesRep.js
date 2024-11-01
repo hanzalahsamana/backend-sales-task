@@ -4,35 +4,18 @@ const getSalesRep = async (req, res) => {
     try {
         const countries = await Country.find();
 
-        const regions = {};
-        const representatives = {};
+        // Group countries by region
+        const regions = countries.reduce((acc, { region, name }) => {
+            if (!acc[region]) acc[region] = [];
+            acc[region].push(name);
+            return acc;
+        }, {});
 
-        countries.forEach((country) => {
-            const { region, name } = country;
-            if (!regions[region]) {
-                regions[region] = [];
-            }
-            regions[region].push(name);
-        });
-
-        Object.keys(regions).forEach((region) => {
-            const countriesInRegion = regions[region];
-            let currentRep = 1;
-            while (countriesInRegion.length > 0) {
-                if (!representatives[region]) {
-                    representatives[region] = {};
-                }
-                let numCountries = Math.min(
-                    7,
-                    Math.max(3, countriesInRegion.length >= 3 ? Math.floor(Math.random() * 5) + 3 : countriesInRegion.length)
-                );
-                representatives[region][`Rep${currentRep}`] = countriesInRegion.splice(0, numCountries);
-                if (countriesInRegion.length < 3 && countriesInRegion.length > 0) {
-                    representatives[region][`Rep${currentRep}`].push(...countriesInRegion.splice(0));
-                }
-                currentRep++;
-            }
-        });
+        // Assign countries to representatives
+        const representatives = Object.entries(regions).reduce((acc, [region, countries]) => {
+            acc[region] = splitCountriesIntoReps(countries);
+            return acc;
+        }, {});
 
         res.json(representatives);
     } catch (error) {
@@ -41,4 +24,23 @@ const getSalesRep = async (req, res) => {
     }
 };
 
-module.exports = { getSalesRep };  
+// Function to split an array of countries into representatives
+const splitCountriesIntoReps = (countries) => {
+    const reps = {};
+    let repIndex = 1;
+
+    while (countries.length > 0) {
+        const numCountries = Math.min(7, Math.max(3, Math.floor(Math.random() * countries.length) + 1));
+
+        if (countries.length - numCountries < 3 && countries.length - numCountries !== 0) {
+            continue; // Skip if fewer than 3 countries would remain
+        } else {
+            reps[`Rep${repIndex}`] = countries.splice(0, numCountries);
+            repIndex++;
+        }
+    }
+
+    return reps;
+};
+
+module.exports = { getSalesRep };
